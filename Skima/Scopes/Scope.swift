@@ -29,10 +29,18 @@ class ScopesManager {
         return newScope
     }
     
-    @discardableResult func register(_ element: ScopeElement, `in` scope: String?) -> Scope {
-        element.scope = getOrCreate(withId: scope)
-        element.scope?.register(element)
-        return element.scope!
+    func register(_ element: ScopeElement, `in` scopes: [Scope]?) {
+        scopes?.forEach{ register(element, in: $0.key) }
+    }
+    
+    func register(_ element: ScopeElement, `in` scopes: [String]) {
+        scopes.forEach{ register(element, in: $0) }
+    }
+    
+    func register(_ element: ScopeElement, `in` scope: String?) {
+        let newScope = getOrCreate(withId: scope)
+        element.scopes.append(newScope)
+        newScope.register(element)
     }
     
     func unregister(_ scope: Scope) {
@@ -65,9 +73,28 @@ public class Scope {
 
 public class ScopeElement {
     let uuid = ID().generate()
-    public weak var scope: Scope?
+    public var scopes: [Scope] = []
+    
+    public func isIn(_ scopes: [Scope]?) -> Bool {
+        for scope in scopes ?? [] {
+            if isIn(scope) {
+                return true
+            }
+        }
+        return false
+    }
+    
+    public func isIn(_ scope: Scope?) -> Bool {
+        guard let _scope = scope else { return false }
+        for eachScope in scopes {
+            if eachScope.uuid == _scope.uuid {
+                return true
+            }
+        }
+        return false
+    }
     
     deinit {
-        scope?.unregister(self)
+        scopes.forEach{$0.unregister(self)}
     }
 }

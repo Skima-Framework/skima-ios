@@ -9,7 +9,7 @@ public protocol WidgetPropsType: Decodable {}
 
 public class Widget: ScopeElement, Decodable {
     public let id: String?
-    public let scopeId: String?
+    public let scopesIds: [String]?
     public let type: String?
     public let props: WidgetPropsType?
     let constraints: [Constraint]?
@@ -17,7 +17,7 @@ public class Widget: ScopeElement, Decodable {
     
     enum CodingKeys: String, CodingKey {
         case id
-        case scopeId
+        case scopesIds = "scopes"
         case type
         case props
         case constraints
@@ -28,21 +28,17 @@ public class Widget: ScopeElement, Decodable {
         id = try? container?.decode(String.self, forKey: .id)
         type = try? container?.decode(String.self, forKey: .type)
         constraints = try? container?.decode([Constraint].self, forKey: .constraints)
-        scopeId = try? container?.decode(String.self, forKey: .scopeId)
+        scopesIds = try? container?.decode([String].self, forKey: .scopesIds)
         
         guard let widgetSchema = WidgetsEngine.shared.getIfExist(type: type),
               let _container = container
         else {
             props = nil
             super.init()
-            ScopesManager.shared.register(self, in: scopeId)
             return
         }
         props = try? widgetSchema.props.init(from: _container.superDecoder(forKey: .props))
         super.init()
-        if let _scopeId = scopeId {
-            ScopesManager.shared.register(self, in: _scopeId)
-        }
     }
     
 }

@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import NanoID
 import PureLayout
 
 final class WeakBox<A: AnyObject> {
@@ -49,16 +50,20 @@ public final class WidgetsEngine {
     
     private var widgetsRegistry: [WidgetSchema] = []
     
-    public func getWidgetBy(id: String, from scope: Scope?) -> UIWidget? {
-        guard let _scope = scope else { return nil }
+    public func getWidgetBy(id: String, from scopes: [Scope]?) -> UIWidget? {
         for widget in widgetsTree {
             if let _widget = widget as? UIWidget,
                _widget.widget.id == id,
-               _widget.widget.scope?.uuid == _scope.uuid {
+               _widget.widget.isIn(scopes) {
                 return _widget
             }
         }
         return nil
+    }
+    
+    public func getWidgetBy(id: String, from scope: Scope?) -> UIWidget? {
+        guard let _scope = scope else { return nil }
+        return getWidgetBy(id: id, from: [_scope])
     }
     
     public func create(from widget: Widget) -> UIWidget? {
@@ -111,10 +116,12 @@ public final class WidgetsEngine {
     
     public func render(_ widgets: [Widget]?, `in` view: UIView, scopeId: String?) {
         var schemappWidgets: [UIWidget] = []
+        let newId = scopeId ?? ID().generate()
         
-        var lastScopeId = scopeId
         widgets?.forEach { widget in
-            lastScopeId = ScopesManager.shared.register(widget, in: lastScopeId).key
+            var scopes = widget.scopesIds ?? []
+            scopes.append(newId)
+            ScopesManager.shared.register(widget, in: scopes)
             guard let _widget = create(from: widget) else { return }
             schemappWidgets.append(_widget)
             widgetsTree.append(_widget)

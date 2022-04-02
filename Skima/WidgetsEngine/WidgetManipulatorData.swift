@@ -10,7 +10,7 @@ open class WidgetManipulatorData: ActionDataType {
     public let type: String?
     public let value: String?
     
-    open func execute(from scope: Scope?) {
+    open func execute(from scopes: [Scope]?) {
         fatalError("Must Override")
     }
 }

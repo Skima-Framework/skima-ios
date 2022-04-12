@@ -37,6 +37,9 @@ public class SkimaViewController: UIViewController {
 extension SkimaViewController: SkimaViewModelDelegate {
     func onSuccess() {
         guard let screenModel = viewModel.model else { return }
+        if let _color = screenModel.backgroundColor {
+            view.backgroundColor = UIColor.init(hex: _color)
+        }
         renderScreen(screenModel)
     }
 }

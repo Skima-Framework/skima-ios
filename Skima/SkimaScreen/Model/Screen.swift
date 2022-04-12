@@ -8,6 +8,7 @@
 struct Screen: Decodable {
     let metadata: ScreenMetadata?
     let keepInStack: Bool?
+    let backgroundColor: String?
     let actions: ScreenActions?
     let ui: [Widget]?
 }

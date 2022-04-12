@@ -5,28 +5,6 @@
 //  Created by Joaquin Bozzalla on 22/03/2022.
 //
 
-public class VariableModel: ScopeElement, Decodable {
-    let id: String?
-    let type: String?
-    var value: String?
-    
-    public init(id: String?, scopes: [Scope]?, type: String?, value: String?) {
-        self.id = id
-        self.type = type
-        self.value = value
-        super.init()
-        ScopesManager.shared.register(self, in: scopes)
-    }
-    
-    public init(id: String?, scope: Scope?, type: String?, value: String?) {
-        self.id = id
-        self.type = type
-        self.value = value
-        super.init()
-        ScopesManager.shared.register(self, in: scope?.key)
-    }
-}
-
 public final class DataEngine {
     
     public static var shared = DataEngine()
@@ -35,8 +13,7 @@ public final class DataEngine {
     private var data = [String: VariableModel]()
     
     public func createOrModify(_ variable: VariableModel, from scopes: [Scope]?) {
-        guard variable.isIn(scopes),
-              let dataId = variable.id else { return }
+        guard variable.isIn(scopes), let dataId = variable.id else { return }
         if let _value = data[dataId] {
             _value.value = variable.value
         } else {
@@ -45,13 +22,8 @@ public final class DataEngine {
     }
     
     public func createOrModify(_ variable: VariableModel, from scope: Scope?) {
-        guard variable.isIn(scope),
-              let dataId = variable.id else { return }
-        if let _value = data[dataId] {
-            _value.value = variable.value
-        } else {
-            data[dataId] = variable
-        }
+        guard let _scope = scope else { return }
+        createOrModify(variable, from: [_scope])
     }
     
     public func createIfNotExists(_ variable: VariableModel, from scopes: [Scope]?) {

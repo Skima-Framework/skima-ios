@@ -39,9 +39,7 @@ public class Action: ScopeElement, Decodable {
     }
     
     func execute(from scopes: [Scope]?) {
-        var ownScopes = scopesIds?.map({ id in
-            return ScopesManager.shared.getOrCreate(withId: id)
-        })
+        var ownScopes = scopesIds?.map { ScopesManager.shared.getOrCreate(withId: $0) }
         ownScopes = (ownScopes ?? []) + (scopes ?? [])
         data?.execute(from: ownScopes)
     }

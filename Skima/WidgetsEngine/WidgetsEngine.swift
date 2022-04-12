@@ -9,44 +9,12 @@ import UIKit
 import NanoID
 import PureLayout
 
-final class WeakBox<A: AnyObject> {
-    weak var unbox: A?
-    init(_ value: A) {
-        unbox = value
-    }
-}
-
-struct WeakArray<Element: AnyObject> {
-    private var items: [WeakBox<Element>] = []
-    init(_ elements: [Element]? = nil) {
-        items = elements?.map { WeakBox($0) } ?? []
-    }
-    
-    mutating func append(_ item: Element) {
-        items.append(WeakBox(item))
-    }
-}
-
-extension WeakArray: Collection {
-    var startIndex: Int { return items.startIndex }
-    var endIndex: Int { return items.endIndex }
-    
-    subscript(_ index: Int) -> Element? {
-        return items[index].unbox
-    }
-    
-    func index(after idx: Int) -> Int {
-        return items.index(after: idx)
-    }
-}
-
 public final class WidgetsEngine {
     
     public static let shared = WidgetsEngine()
-    
     private init() {}
     
-    var widgetsTree = WeakArray<UIView>()
+    var widgetsTree = WeakArray<UIView>() // Es solo un array, pensaba hacerlo como arbol de widgets
     
     private var widgetsRegistry: [WidgetSchema] = []
     
@@ -114,14 +82,23 @@ public final class WidgetsEngine {
         return widgetsRegistry.remove(at: index)
     }
     
+    public func render(_ widgets: [Widget]?, `in` view: UIView, scopes: [Scope]?) {
+        let scopesIds = scopes?.map{ return $0.key }
+        render(widgets, in: view, scopes: scopesIds ?? [])
+    }
+    
     public func render(_ widgets: [Widget]?, `in` view: UIView, scopeId: String?) {
+        let newScopeId = scopeId ?? ID().generate()
+        render(widgets, in: view, scopes: [newScopeId])
+    }
+    
+    public func render(_ widgets: [Widget]?, `in` view: UIView, scopes: [String]?) {
         var schemappWidgets: [UIWidget] = []
-        let newId = scopeId ?? ID().generate()
         
         widgets?.forEach { widget in
-            var scopes = widget.scopesIds ?? []
-            scopes.append(newId)
-            ScopesManager.shared.register(widget, in: scopes)
+            var widgetScopes = widget.scopesIds ?? []
+            widgetScopes += scopes ?? []
+            ScopesManager.shared.register(widget, in: widgetScopes)
             guard let _widget = create(from: widget) else { return }
             schemappWidgets.append(_widget)
             widgetsTree.append(_widget)
@@ -190,4 +167,61 @@ public final class WidgetsEngine {
             return nil
         }
     }
+    
+    public func render(_ widgets: [Widget]?, `in` view: UIStackView, scopes: [Scope]?) {
+        let scopesIds = scopes?.map{ return $0.key }
+        render(widgets, in: view, scopes: scopesIds ?? [])
+    }
+    
+    public func render(_ widgets: [Widget]?, `in` view: UIStackView, scopeId: String?) {
+        let newScopeId = scopeId ?? ID().generate()
+        render(widgets, in: view, scopes: [newScopeId])
+    }
+    
+    public func render(_ widgets: [Widget]?, `in` view: UIStackView, scopes: [String]?) {
+        var schemappWidgets: [UIWidget] = []
+        
+        widgets?.forEach { widget in
+            var widgetScopes = widget.scopesIds ?? []
+            widgetScopes += scopes ?? []
+            ScopesManager.shared.register(widget, in: widgetScopes)
+            guard let _widget = create(from: widget) else { return }
+            schemappWidgets.append(_widget)
+            widgetsTree.append(_widget)
+        }
+        
+        schemappWidgets.forEach { view.addArrangedSubview($0) }
+        
+        schemappWidgets.forEach { schemappWidget in
+            schemappWidget.widget.constraints?.forEach { schemappConstraint in
+                switch schemappConstraint.type {
+                case .topEqual, .bottomEqual, .rightEqual, .leftEqual:
+                    guard let side = mapEqualConstraint(schemappConstraint.type) else { return }
+                    
+                    if let toSide = mapSideConstraint(schemappConstraint.to),
+                       let ofId = schemappConstraint.of,
+                       let ofWidget = schemappWidgets.first(where: { $0.widget.id == ofId }) {
+                        schemappWidget.autoPinEdge(side, to: toSide, of: ofWidget, withOffset: schemappConstraint.value ?? 0)
+                    } else {
+                        schemappWidget.autoPinEdge(toSuperviewSafeArea: side, withInset: schemappConstraint.value ?? 0)
+                    }
+                    
+                case .height:
+                    schemappWidget.autoSetDimension(.height, toSize: schemappConstraint.value ?? 0)
+                case .width:
+                    schemappWidget.autoSetDimension(.width, toSize: schemappConstraint.value ?? 0)
+                case .centerX:
+                    schemappWidget.autoAlignAxis(toSuperviewAxis: .vertical)
+                case .centerY:
+                    schemappWidget.autoAlignAxis(toSuperviewAxis: .horizontal)
+                case .horizontalMargin:
+                    schemappWidget.autoPinEdge(toSuperviewEdge: .left, withInset: schemappConstraint.value ?? 0)
+                    schemappWidget.autoPinEdge(toSuperviewEdge: .right, withInset: schemappConstraint.value ?? 0)
+                default:
+                    return
+                }
+            }
+        }
+    }
+        
 }

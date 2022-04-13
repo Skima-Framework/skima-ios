@@ -18,6 +18,16 @@ public final class WidgetsEngine {
     
     private var widgetsRegistry: [WidgetSchema] = []
     
+    private func getWidgetBy(id: String) -> UIWidget? {
+        for widget in widgetsTree {
+            if let _widget = widget as? UIWidget,
+               _widget.widget.id == id {
+                return _widget
+            }
+        }
+        return nil
+    }
+    
     public func getWidgetBy(id: String, from scopes: [Scope]?) -> UIWidget? {
         for widget in widgetsTree {
             if let _widget = widget as? UIWidget,
@@ -82,58 +92,79 @@ public final class WidgetsEngine {
         return widgetsRegistry.remove(at: index)
     }
     
-    public func render(_ widgets: [Widget]?, `in` view: UIView, scopes: [Scope]?) {
+    public func render<T>(_ widgets: [Widget]?, `in` view: T, scopes: [Scope]?) {
         let scopesIds = scopes?.map{ return $0.key }
         render(widgets, in: view, scopes: scopesIds ?? [])
     }
     
-    public func render(_ widgets: [Widget]?, `in` view: UIView, scopeId: String?) {
+    public func render<T>(_ widgets: [Widget]?, `in` view: T, scopeId: String?) {
         let newScopeId = scopeId ?? ID().generate()
         render(widgets, in: view, scopes: [newScopeId])
     }
     
-    public func render(_ widgets: [Widget]?, `in` view: UIView, scopes: [String]?) {
-        var schemappWidgets: [UIWidget] = []
+    public func render<T>(_ widgets: [Widget]?, `in` view: T, scopes: [String]?) {
+        
+        let skimaWidgets: [UIWidget] = createAndAddToTree(widgets, scopes: scopes)
+        addWidgetsIntoView(skimaWidgets, in: view)
+        addConstraintsOf(widgets: skimaWidgets)
+    }
+    
+    private func createAndAddToTree(_ widgets: [Widget]?, scopes: [String]?) -> [UIWidget] {
+        var skimaWidgets: [UIWidget] = []
         
         widgets?.forEach { widget in
             var widgetScopes = widget.scopesIds ?? []
             widgetScopes += scopes ?? []
             ScopesManager.shared.register(widget, in: widgetScopes)
             guard let _widget = create(from: widget) else { return }
-            schemappWidgets.append(_widget)
+            skimaWidgets.append(_widget)
             widgetsTree.append(_widget)
         }
         
-        schemappWidgets.forEach { view.addSubview($0) }
-        
-        schemappWidgets.forEach { schemappWidget in
-            schemappWidget.widget.constraints?.forEach { schemappConstraint in
-                switch schemappConstraint.type {
-                case .topEqual, .bottomEqual, .rightEqual, .leftEqual:
-                    guard let side = mapEqualConstraint(schemappConstraint.type) else { return }
-                    
-                    if let toSide = mapSideConstraint(schemappConstraint.to),
-                       let ofId = schemappConstraint.of,
-                       let ofWidget = schemappWidgets.first(where: { $0.widget.id == ofId }) {
-                        schemappWidget.autoPinEdge(side, to: toSide, of: ofWidget, withOffset: schemappConstraint.value ?? 0)
-                    } else {
-                        schemappWidget.autoPinEdge(toSuperviewSafeArea: side, withInset: schemappConstraint.value ?? 0)
-                    }
-                    
-                case .height:
-                    schemappWidget.autoSetDimension(.height, toSize: schemappConstraint.value ?? 0)
-                case .width:
-                    schemappWidget.autoSetDimension(.width, toSize: schemappConstraint.value ?? 0)
-                case .centerX:
-                    schemappWidget.autoAlignAxis(toSuperviewAxis: .vertical)
-                case .centerY:
-                    schemappWidget.autoAlignAxis(toSuperviewAxis: .horizontal)
-                case .horizontalMargin:
-                    schemappWidget.autoPinEdge(toSuperviewEdge: .left, withInset: schemappConstraint.value ?? 0)
-                    schemappWidget.autoPinEdge(toSuperviewEdge: .right, withInset: schemappConstraint.value ?? 0)
-                default:
-                    return
+        return skimaWidgets
+    }
+    
+    private func addWidgetsIntoView<T>(_ widgets: [UIWidget], `in` view: T) {
+        widgets.forEach {
+            if view is UIStackView {
+                (view as? UIStackView)?.addArrangedSubview($0)
+            } else if view is UIView {
+                (view as? UIView)?.addSubview($0)
+            }
+        }
+    }
+    
+    private func addConstraintsOf(widgets: [UIWidget]) {
+        widgets.forEach { addConstraintOf(widget: $0) }
+    }
+    
+    private func addConstraintOf(widget: UIWidget) {
+        widget.widget.constraints?.forEach { skimaConstraint in
+            switch skimaConstraint.type {
+            case .topEqual, .bottomEqual, .rightEqual, .leftEqual:
+                guard let side = mapEqualConstraint(skimaConstraint.type) else { return }
+                
+                if let toSide = mapSideConstraint(skimaConstraint.to),
+                   let ofId = skimaConstraint.of,
+                   let ofWidget = getWidgetBy(id: ofId) {
+                    widget.autoPinEdge(side, to: toSide, of: ofWidget, withOffset: skimaConstraint.value ?? 0)
+                } else {
+                    widget.autoPinEdge(toSuperviewSafeArea: side, withInset: skimaConstraint.value ?? 0)
                 }
+                
+            case .height:
+                widget.autoSetDimension(.height, toSize: skimaConstraint.value ?? 0)
+            case .width:
+                widget.autoSetDimension(.width, toSize: skimaConstraint.value ?? 0)
+            case .centerX:
+                widget.autoAlignAxis(toSuperviewAxis: .vertical)
+            case .centerY:
+                widget.autoAlignAxis(toSuperviewAxis: .horizontal)
+            case .horizontalMargin:
+                widget.autoPinEdge(toSuperviewEdge: .left, withInset: skimaConstraint.value ?? 0)
+                widget.autoPinEdge(toSuperviewEdge: .right, withInset: skimaConstraint.value ?? 0)
+            default:
+                return
             }
         }
     }
@@ -167,61 +198,4 @@ public final class WidgetsEngine {
             return nil
         }
     }
-    
-    public func render(_ widgets: [Widget]?, `in` view: UIStackView, scopes: [Scope]?) {
-        let scopesIds = scopes?.map{ return $0.key }
-        render(widgets, in: view, scopes: scopesIds ?? [])
-    }
-    
-    public func render(_ widgets: [Widget]?, `in` view: UIStackView, scopeId: String?) {
-        let newScopeId = scopeId ?? ID().generate()
-        render(widgets, in: view, scopes: [newScopeId])
-    }
-    
-    public func render(_ widgets: [Widget]?, `in` view: UIStackView, scopes: [String]?) {
-        var schemappWidgets: [UIWidget] = []
-        
-        widgets?.forEach { widget in
-            var widgetScopes = widget.scopesIds ?? []
-            widgetScopes += scopes ?? []
-            ScopesManager.shared.register(widget, in: widgetScopes)
-            guard let _widget = create(from: widget) else { return }
-            schemappWidgets.append(_widget)
-            widgetsTree.append(_widget)
-        }
-        
-        schemappWidgets.forEach { view.addArrangedSubview($0) }
-        
-        schemappWidgets.forEach { schemappWidget in
-            schemappWidget.widget.constraints?.forEach { schemappConstraint in
-                switch schemappConstraint.type {
-                case .topEqual, .bottomEqual, .rightEqual, .leftEqual:
-                    guard let side = mapEqualConstraint(schemappConstraint.type) else { return }
-                    
-                    if let toSide = mapSideConstraint(schemappConstraint.to),
-                       let ofId = schemappConstraint.of,
-                       let ofWidget = schemappWidgets.first(where: { $0.widget.id == ofId }) {
-                        schemappWidget.autoPinEdge(side, to: toSide, of: ofWidget, withOffset: schemappConstraint.value ?? 0)
-                    } else {
-                        schemappWidget.autoPinEdge(toSuperviewSafeArea: side, withInset: schemappConstraint.value ?? 0)
-                    }
-                    
-                case .height:
-                    schemappWidget.autoSetDimension(.height, toSize: schemappConstraint.value ?? 0)
-                case .width:
-                    schemappWidget.autoSetDimension(.width, toSize: schemappConstraint.value ?? 0)
-                case .centerX:
-                    schemappWidget.autoAlignAxis(toSuperviewAxis: .vertical)
-                case .centerY:
-                    schemappWidget.autoAlignAxis(toSuperviewAxis: .horizontal)
-                case .horizontalMargin:
-                    schemappWidget.autoPinEdge(toSuperviewEdge: .left, withInset: schemappConstraint.value ?? 0)
-                    schemappWidget.autoPinEdge(toSuperviewEdge: .right, withInset: schemappConstraint.value ?? 0)
-                default:
-                    return
-                }
-            }
-        }
-    }
-        
 }

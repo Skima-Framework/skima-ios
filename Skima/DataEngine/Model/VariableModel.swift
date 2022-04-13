@@ -8,7 +8,7 @@
 public class VariableModel: ScopeElement, Decodable {
     let id: String?
     let type: String?
-    var value: String?
+    var value: String? // String, Double, Int, Boolean, Arrays, Dicts
     
     public init(id: String?, scopes: [Scope]?, type: String?, value: String?) {
         self.id = id

@@ -5,7 +5,7 @@ Pod::Spec.new do |s|
     s.summary               = 'Skima - module'
     s.license               = { :type => 'MIT', :file => 'LICENSE.txt' }
     s.author                = 'Skima Framework'
-    s.source                = { :git => 'git@github.com:Skima-Framework/skima-ios.git', :tag => s.version.to_s }
+    s.source                = { :git => 'https://github.com/Skima-Framework/skima-ios.git', :tag => s.version.to_s }
     
     s.platform              = :ios, '11.0'
     s.requires_arc          = true

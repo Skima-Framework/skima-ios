@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
     s.name                  = 'Skima'
-    s.version               = '0.1.0'
+    s.version               = '0.1.1'
     s.homepage              = 'https://github.com/Skima-Framework/skima-ios'
     s.summary               = 'Skima - module'
     s.license               = { :type => 'AGPL-3.0', :file => 'LICENSE' }
